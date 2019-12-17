@@ -37,9 +37,13 @@ plot_distr <- function(mean, sd, overall_prop, npop, n_days) {
 }
 
 # Simulates a population
-sim_pop <- function(n_days, init_pop_size, nvac, nflu_novac, ve, lag) {
-  sim_pop_cpp(n_days, init_pop_size, nvac, nflu_novac, ve, lag) %>%
+sim_pop <- function(n_days, init_pop_size, nvac, nflu_novac, ve, lag,
+                    seed = sample.int(.Machine$integer.max, 1)) {
+  set.seed(seed)
+  pop <- sim_pop_cpp(n_days, init_pop_size, nvac, nflu_novac, ve, lag) %>%
     as_tibble()
+  attr(pop, "seed") <- seed
+  pop
 }
 
 # Script ======================================================================
