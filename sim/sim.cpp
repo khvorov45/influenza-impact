@@ -93,8 +93,8 @@ DataFrame sim_pop_cpp(const int& n_days,
     uninf_novac[i] = uninf_novac[i - 1] - nflu_novac_vec[i];
 
     // A compartment (non-vaccinated, non-cases, susceptible)
-    A_to_B0[i] = R::rbinom(A[i - 1], pvac[i - 1]);
-    A_to_E[i] = R::rbinom(A[i - 1], pflu[i - 1]);
+    A_to_B0[i] = R::rbinom(A[i - 1], pvac[i]);
+    A_to_E[i] = R::rbinom(A[i - 1], pflu[i]);
     A[i] -= A_to_B0[i] + A_to_E[i];
     nflu[i] += A_to_E[i];
 
@@ -104,7 +104,7 @@ DataFrame sim_pop_cpp(const int& n_days,
       IntegerVector Bj = pop[Bj_name];
       std::string Bj_to_F_name = Bj_name + "_to_F";
       IntegerVector Bj_to_F = pop[Bj_to_F_name];
-      Bj_to_F[i] = R::rbinom(Bj[i - 1], pflu[i - 1]);
+      Bj_to_F[i] = R::rbinom(Bj[i - 1], pflu[i]);
       F[i] += Bj_to_F[i];
       nflu[i] += Bj_to_F[i];
       if (j == 0) {
@@ -119,7 +119,7 @@ DataFrame sim_pop_cpp(const int& n_days,
       if (j == lag) {
         std::string Bj_to_D_name = Bj_name + "_to_D";
         IntegerVector Bj_to_D = pop[Bj_to_D_name];
-        Bj_to_D[i] = R::rbinom((Bj[i - 1] - Bj_to_F[i]), ve_vec[i - 1]);
+        Bj_to_D[i] = R::rbinom((Bj[i - 1] - Bj_to_F[i]), ve_vec[i]);
         std::string Bj_to_C_name = Bj_name + "_to_C";
         IntegerVector Bj_to_C = pop[Bj_to_C_name];
         Bj_to_C[i] = Bj[i - 1] - Bj_to_D[i] - Bj_to_F[i];
@@ -129,12 +129,12 @@ DataFrame sim_pop_cpp(const int& n_days,
     }
 
     // C compartment (vaccinated, non-cases, susceptible)
-    C_to_F[i] = R::rbinom(C[i - 1], pflu[i - 1]);
+    C_to_F[i] = R::rbinom(C[i - 1], pflu[i]);
     C[i] -= C_to_F[i];
     nflu[i] += C_to_F[i];
 
     // E compartment (non-vaccinated cases)
-    E_to_F[i] = R::rbinom(E[i - 1], pvac[i - 1]);
+    E_to_F[i] = R::rbinom(E[i - 1], pvac[i]);
     E[i] += A_to_E[i] - E_to_F[i];
 
     // F compartment (vaccinated cases)
