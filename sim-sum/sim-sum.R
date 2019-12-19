@@ -11,7 +11,7 @@ sim_sum_dir <- "sim-sum"
 
 # Script ======================================================================
 
-res <- read_csv(file.path(sim_dir, "res-10000sims.csv"))
+res <- read_csv(file.path(sim_dir, "res-50sims.csv"))
 
 summ <- res %>%
   pivot_longer(
@@ -30,4 +30,4 @@ summ <- res %>%
   ) %>%
   ungroup()
 
-write_csv(summ, file.path(sim_sum_dir, "sum-10000sims.csv"))
+write_csv(summ, file.path(sim_sum_dir, "sum-50sims.csv"))
