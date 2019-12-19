@@ -19,11 +19,14 @@ summ <- res %>%
   ) %>%
   mutate(
     method = str_replace(method, "averted_method", ""),
-    bias = averted - averted_true
+    bias = averted - averted_true,
+    bias_prop = bias / averted_true
   ) %>%
   group_by(method, init_pop_size, lag) %>%
   summarise(
-    bias = mean(bias), sd_averted = sd(averted)
+    bias_mean = mean(bias),
+    bias_prop_mean = mean(bias_prop),
+    averted_sd = sd(averted),
   ) %>%
   ungroup()
 
