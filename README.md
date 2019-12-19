@@ -8,4 +8,6 @@ Influenza impact studies
 
 * `sim` - simulation.
 
+* `sim-sum` - simulation summary.
+
 * `tests` - tests. Cannot be run in isolation.
