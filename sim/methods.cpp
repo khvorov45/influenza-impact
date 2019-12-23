@@ -156,3 +156,60 @@ DataFrame method5_cpp(const IntegerVector& cases,
   );
   return method5;
 }
+
+// [[Rcpp::export]]
+DataFrame method8_cpp(const IntegerVector& cases,
+                      const IntegerVector& vaccinations,
+                      const NumericVector& ve,
+                      const int& nsam) {
+  double mlag = 0.5;
+  int nt = cases.size();
+  IntegerVector b(nt), bpostlag(nt), A(nt), C(nt), D(nt), E(nt), F(nt),
+  popn(nt), casen(nt), averted_method8(nt);
+  NumericVector pvac(nt), pflu(nt);
+  pflu[0] = cases[0] / double(nsam);
+  pvac[0] = vaccinations[0] / double(nsam);
+  b[0] = nsam * pvac[0];
+  bpostlag[0] = b[0] * (1 - mlag);
+  A[0] = nsam * (1 - pflu[0]) - b[0];
+  C[0] = bpostlag[0] * (1 - ve[0]);
+  D[0] = bpostlag[0] * ve[0];
+  E[0] = nsam * pflu[0];
+  F[0] = b[0] * mlag * pflu[0];
+  casen[0] = nsam * pflu[0];
+  popn[0] = nsam - casen[0];
+  averted_method8[0] = casen[0] - cases[0];
+  for (int i = 1; i < nt; i++) {
+    pflu[i] = double(cases[i]) /
+      (A[i - 1] + C[i - 1] + b[i - 1] * mlag);
+    pvac[i] = double(vaccinations[i]) / (A[i - 1] + E[i - 1]);
+    b[i] = A[i - 1] * pvac[i];
+    bpostlag[i] = b[i - 1] * mlag * (1 - pflu[i - 1]) + b[i] * (1 - mlag);
+    A[i] = A[i - 1] * (1 - pflu[i]) - b[i];
+    C[i] = C[i - 1] * (1 - pflu[i]) + bpostlag[i] * (1 - ve[i]);
+    D[i] = D[i - 1] + bpostlag[i] * ve[i];
+    E[i] = E[i - 1] * (1 - pvac[i]) + A[i - 1] * pflu[i];
+    F[i] = F[i - 1] + C[i - 1] * pflu[i] + E[i - 1] * pvac[i] +
+      b[i] * mlag * pflu[i];
+    casen[i] = pflu[i] * popn[i - 1];
+    popn[i] = popn[i - 1] - casen[i];
+    averted_method8[i] = casen[i] - cases[i];
+  }
+  DataFrame method8 = DataFrame::create(
+    _["cases"] = cases,
+    _["vaccinations"] = vaccinations,
+    _["ve"] = ve,
+    _["b"] = b,
+    _["A"] = A,
+    _["C"] = C,
+    _["D"] = D,
+    _["E"] = E,
+    _["F"] = F,
+    _["pvac"] = pvac,
+    _["pflu"] = pflu,
+    _["popn"] = popn,
+    _["casen"] = casen,
+    _["averted_method8"] = averted_method8
+  );
+  return method8;
+}
