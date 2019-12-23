@@ -70,6 +70,7 @@ DataFrame sim_pop_cpp(const int& n_days,
   IntegerVector nflu_novac_vec = pop["nflu_novac"];
   NumericVector ve_vec = pop["ve"];
   NumericVector pvac(n_days), pflu(n_days);
+  pvac[0] = nvac[0] / double(init_pop_size);
   pop["pvac"] = pvac;
   pop["pflu"] = pflu;
   IntegerVector uninf_novac(n_days), nflu(n_days);
