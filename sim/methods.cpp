@@ -8,15 +8,14 @@ DataFrame method1_cpp(const IntegerVector& cases,
                       const int& nsam) {
   int nt = cases.size();
   IntegerVector pops(nt), popn(nt), casen(nt), averted_method1(nt);
-  pops[0] = nsam;
-  popn[0] = nsam;
   NumericVector pvac(nt), pflu(nt), vc_lag(nt);
-  for (int i = 0; i < nt; i++) {
-    pvac[i] = vaccinations[i] / double(nsam);
-  }
+  for (int i = 0; i < nt; i++) pvac[i] = vaccinations[i] / double(nsam);
   vc_lag[0] = pvac[0] / 2;
-  pflu[0] = cases[0] / double(nsam);
-  casen[0] = cases[0];
+  pops[0] = nsam * (1 - vc_lag[0] * ve[0]);
+  pflu[0] = double(cases[0]) / pops[0];
+  popn[0] = nsam - cases[0];
+  casen[0] = pflu[0] * popn[0];
+  averted_method1[0] = casen[0] - cases[0];
   for (int i = 1; i < nt; i++) {
     vc_lag[i] = (pvac[i] + pvac[i - 1]) / 2;
     pops[i] = (pops[i - 1] - cases[i - 1]) * (1 - vc_lag[i] * ve[i]);
@@ -47,13 +46,15 @@ DataFrame method2_cpp(const IntegerVector& cases,
   int nt = cases.size();
   IntegerVector pop(nt), pops(nt), popn(nt), casen(nt), vef(nt),
     averted_method2(nt);
-  pop[0] = nsam;
-  pops[0] = nsam;
-  popn[0] = nsam;
   NumericVector pvac(nt), pflu(nt);
-  for (int i = 0; i < nt; i++) {
-    pvac[i] = vaccinations[i] / double(nsam);
-  }
+  for (int i = 0; i < nt; i++) pvac[i] = vaccinations[i] / double(nsam);
+  vef[0] = nsam * pvac[0] * ve[0];
+  pop[0] = nsam - cases[0];
+  pops[0] = nsam - cases[0] - vef[0];
+  pflu[0] = cases[0] / double(nsam);
+  popn[0] = nsam;
+  casen[0] = pflu[0] * popn[0];
+  averted_method2[0] = casen[0] - cases[0];
   for (int i = 1; i < nt; i++) {
     vef[i] = pop[i - 1] * pvac[i] * ve[i];
     pop[i] = pop[i - 1] - cases[i];
@@ -86,9 +87,18 @@ DataFrame method3_cpp(const IntegerVector& cases,
   int nt = cases.size();
   IntegerVector b(nt), A(nt), C(nt), D(nt), E(nt), F(nt),
     popn(nt), casen(nt), averted_method3(nt);
-  A[0] = nsam;
-  popn[0] = nsam;
   NumericVector pvac(nt), pflu(nt);
+  pflu[0] = cases[0] / double(nsam);
+  pvac[0] = vaccinations[0] / double(nsam);
+  b[0] = nsam * pvac[0];
+  A[0] = nsam * (1 - pflu[0]) - b[0];
+  C[0] = b[0] * (1 - ve[0]);
+  D[0] = b[0] * ve[0];
+  E[0] = nsam * pflu[0];
+  F[0] = 0;
+  casen[0] = nsam * pflu[0];
+  popn[0] = nsam - casen[0];
+  averted_method3[0] = casen[0] - cases[0];
   for (int i = 1; i < nt; i++) {
     pflu[i] = double(cases[i]) / (A[i - 1] + C[i - 1]);
     pvac[i] = double(vaccinations[i]) / (A[i - 1] + E[i - 1]);
