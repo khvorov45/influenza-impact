@@ -82,7 +82,9 @@ month_agg <- function(pop) {
       averted_method3 = method3_cpp(cases, vaccinations, ve, nsam) %>%
         pull(averted_method3),
       averted_method5 = method5_cpp(cases, vaccinations, ve, nsam) %>%
-        pull(averted_method5)
+        pull(averted_method5),
+      averted_method8 = method8_cpp(cases, vaccinations, ve, nsam) %>%
+        pull(averted_method8)
     )
   attr(pop_agg, "seed") <- attr(pop, "seed")
   attr(pop_agg, "init_pop_size") <- attr(pop, "init_pop_size")
@@ -99,6 +101,7 @@ sum_pop <- function(agg_pop) {
       averted_method2 = sum(averted_method2),
       averted_method3 = sum(averted_method3),
       averted_method5 = sum(averted_method5),
+      averted_method8 = sum(averted_method8),
       init_pop_size = attr(agg_pop, "init_pop_size"),
       lag = attr(agg_pop, "lag"),
       seed = attr(agg_pop, "seed")
@@ -108,8 +111,6 @@ sum_pop <- function(agg_pop) {
 # Simulate and summarise one
 sim_one <- function(n_days, init_pop_size, nvac, nflu_novac, ve, lag,
                     seed = sample.int(.Machine$integer.max, 1)) {
-  sourceCpp(file.path(sim_dir, "sim.cpp"))
-  sourceCpp(file.path(sim_dir, "methods.cpp"))
   sim_pop(n_days, init_pop_size, nvac, nflu_novac, ve, lag, seed) %>%
     month_agg() %>%
     sum_pop()
