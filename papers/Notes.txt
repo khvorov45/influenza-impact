@@ -1,0 +1,35 @@
+# Tokars Supplementary 
+
+Method 3 step 11
+Should be C(m-1) * r(m), see Figure 1.
+
+Method 4 is borderline impossible as specified
+
+Method 6 Step 4
+Should be vc_cum * ve, not ve twice
+
+# Applications
+
+Rolfres uses Tokars
+
+Sah has a different model (age and subtype-specific).
+
+# Estimating cases
+
+Rolfes used ready-made CDC data https://www.cdc.gov/flu/about/burden/estimates.htm
+
+Their methods are in Reed as per https://www.cdc.gov/flu/about/burden/how-cdc-estimates.htm
+
+Influenza Hospitalization Surveillance Network -> rate of hospitalisation
+
+The method of extrapolating from influenza hospitalisations is in Shrestha
+
+1. Account for test probability/specificity/sensitivity -> estimate of true hospitalised cases for the site
+
+2. Divide by site population -> estimate of rate of influenza hospitalisation
+
+3. Match geographic region to site by level of activity
+
+(4.) Multiply by geographic region's population -> estimate of true hospitalised cases for the region
+
+

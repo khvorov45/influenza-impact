@@ -1,32 +1,20 @@
 # Simulations like in Tokar 2018
 # Arseniy Khvorov
 # Created 2019/12/13
-# Last edit 2019/12/20
+# Last edit 2019/01/08
 
 library(tidyverse)
 library(lubridate)
-library(Rcpp)
 library(ggdark) # devtools::install_github("khvorov45/ggdark")
+library(impactflu) # devtools::install_github("khvorov45/impactflu")
+library(furrr)
+
+plan(multiprocess)
 
 # Directories to be used later
 sim_dir <- "sim"
 
-sourceCpp(file.path(sim_dir, "sim.cpp"))
-sourceCpp(file.path(sim_dir, "methods.cpp"))
-
 # Functions ===================================================================
-
-# Finds density coefficient to result in a particular overall proportion
-find_dens_coef <- function(mean, sd, overall_prop, npop, n_days) {
-  overall_prop * npop / sum(dnorm(1:n_days, mean, sd))
-}
-
-# Counts with a particular overall proportion
-get_counts <- function(mean, sd, overall_prop, npop, n_days) {
-  counts <- dnorm(1:n_days, mean, sd) *
-    find_dens_coef(mean, sd, overall_prop, npop, n_days)
-  as.integer(counts)
-}
 
 # Plots a distribution
 plot_distr <- function(mean_vac, sd_vac, prop_vac,
@@ -48,102 +36,123 @@ plot_distr <- function(mean_vac, sd_vac, prop_vac,
 }
 
 # Simulates a population
-sim_pop <- function(n_days, init_pop_size, nvac, nflu_novac, ve, lag,
+sim_pop <- function(nsam, vacs, casen, ve, lag, deterministic, start_date,
                     seed = sample.int(.Machine$integer.max, 1)) {
-  set.seed(seed)
-  pop <- sim_pop_cpp(n_days, init_pop_size, nvac, nflu_novac, ve, lag) %>%
-    as_tibble() %>%
-    mutate(
-      date = ymd("2010/08/01") + day - 1,
-      averted_true = nflu_novac - nflu
-    )
+  pop <- sim_ideal(nsam, vacs, casen, ve, lag, deterministic, seed) %>%
+    mutate(datestamp = generate_dates(timepoint, start_date, "day"))
   attr(pop, "seed") <- seed
-  attr(pop, "init_pop_size") <- init_pop_size
   attr(pop, "lag") <- lag
+  attr(pop, "deterministic") <- deterministic
+  attr(pop, "nsam") <- nsam
   pop
 }
 
+# Monthly aggregate
 month_agg <- function(pop) {
   pop_agg <- pop %>%
-    mutate(month = month(date), year = year(date)) %>%
+    mutate(month = month(datestamp), year = year(datestamp)) %>%
     group_by(year, month) %>%
     summarise(
-      vaccinations = sum(A_to_B0 + E_to_F),
-      cases = sum(nflu),
-      ve = first(ve),
-      averted_true = sum(averted_true),
+      vaccinations = sum(vaccinations),
+      cases = sum(cases),
+      ve = mean(ve),
+      avert_true = sum(avert),
     ) %>%
     ungroup() %>%
     mutate(
-      averted_method1 = method1_cpp(cases, vaccinations, ve, nsam) %>%
-        pull(averted_method1),
-      averted_method2 = method2_cpp(cases, vaccinations, ve, nsam) %>%
-        pull(averted_method2),
-      averted_method3 = method3_cpp(cases, vaccinations, ve, nsam) %>%
-        pull(averted_method3),
-      averted_method5 = method5_cpp(cases, vaccinations, ve, nsam) %>%
-        pull(averted_method5),
-      averted_method8 = method8_cpp(cases, vaccinations, ve, nsam) %>%
-        pull(averted_method8)
+      avert_m1 = method1(nsam, vaccinations, cases, ve) %>% pull(avert),
+      avert_m3 = method3(nsam, vaccinations, cases, ve) %>% pull(avert),
     )
   attr(pop_agg, "seed") <- attr(pop, "seed")
-  attr(pop_agg, "init_pop_size") <- attr(pop, "init_pop_size")
+  attr(pop_agg, "nsam") <- attr(pop, "nsam")
   attr(pop_agg, "lag") <- attr(pop, "lag")
+  attr(pop_agg, "deterministic") <- attr(pop, "deterministic")
   pop_agg
 }
 
-# Summarises a population
+# Summarises a monthly aggregate of a population
 sum_pop <- function(agg_pop) {
   agg_pop %>%
     summarise(
-      averted_true = sum(averted_true),
-      averted_method1 = sum(averted_method1),
-      averted_method2 = sum(averted_method2),
-      averted_method3 = sum(averted_method3),
-      averted_method5 = sum(averted_method5),
-      averted_method8 = sum(averted_method8),
-      init_pop_size = attr(agg_pop, "init_pop_size"),
+      avert_true = sum(avert_true),
+      avert_m1 = sum(avert_m1),
+      avert_m3 = sum(avert_m3),
+      nsam = attr(agg_pop, "nsam"),
       lag = attr(agg_pop, "lag"),
-      seed = attr(agg_pop, "seed")
+      seed = attr(agg_pop, "seed"),
+      deterministic = attr(agg_pop, "deterministic")
     )
 }
 
 # Simulate and summarise one
-sim_one <- function(n_days, init_pop_size, nvac, nflu_novac, ve, lag,
+sim_one <- function(nsam, vacs, casen, ve, lag, deterministic, start_date,
                     seed = sample.int(.Machine$integer.max, 1)) {
-  sim_pop(n_days, init_pop_size, nvac, nflu_novac, ve, lag, seed) %>%
+  sim_pop(nsam, vacs, casen, ve, lag, deterministic, start_date, seed) %>%
     month_agg() %>%
     sum_pop()
 }
 
 # Simulate many
-sim_many <- function(nsim, n_days, init_pop_size, nvac, nflu_novac, ve, lag,
-                     init_seed) {
-  map_dfr(
+sim_many <- function(nsim, nsam, vacs, casen, ve, lag, deterministic,
+                     start_date, init_seed) {
+  future_map_dfr(
     1:nsim,
     function(ind) sim_one(
-      n_days, init_pop_size, nvac, nflu_novac, ve, lag, init_seed + ind - 1
+      nsam, vacs, casen, ve, lag, deterministic, start_date,
+      init_seed + ind - 1
     )
+  )
+}
+
+# Save results
+save_res <- function(res, name) {
+  write_csv(
+    res, file.path(sim_dir, paste0("res-", name, ".csv"))
   )
 }
 
 # Script ======================================================================
 
-nsim <- 50
+nsim <- 1e4
 nsam <- 1e6
 n_days <- 304
-#plot_distr(100, 50, 0.55, 190, 35, 0.08, nsam, n_days)
-res <- sim_many(
-  nsim = nsim,
-  n_days = n_days,
-  init_pop_size = nsam,
-  nvac = get_counts(100, 50, 0.55, nsam, n_days),
-  nflu_novac = get_counts(190, 35, 0.12, nsam, n_days),
+start_date = ymd("2017/08/01")
+
+pop <- sim_pop(
+  nsam,
+  vacs = generate_counts(nsam, n_days, 0.55, mean = 100, sd = 50),
+  casen = generate_counts(nsam, n_days, 0.12, mean = 190, sd = 35),
   ve = 0.48,
   lag = 14,
+  deterministic = TRUE,
+  start_date = start_date
+)
+
+pop_month <- month_agg(pop)
+
+pop_summ <- sum_pop(pop_month)
+
+res_deterministic <- sim_one(
+  nsam,
+  vacs = generate_counts(nsam, n_days, 0.55, mean = 100, sd = 50),
+  casen = generate_counts(nsam, n_days, 0.12, mean = 190, sd = 35),
+  ve = 0.48,
+  lag = 14,
+  deterministic = TRUE,
+  start_date = start_date
+)
+
+save_res(res_deterministic, "deterministic")
+
+res_random <- sim_many(
+  nsim, nsam,
+  vacs = generate_counts(nsam, n_days, 0.55, mean = 100, sd = 50),
+  casen = generate_counts(nsam, n_days, 0.12, mean = 190, sd = 35),
+  ve = 0.48,
+  lag = 14,
+  deterministic = FALSE,
+  start_date = start_date,
   init_seed = 1
 )
 
-write_csv(
-  res, file.path(sim_dir, paste0("res-", nsim, "sims.csv"))
-)
+save_res(res_random, paste0(nsim, "sims"))
